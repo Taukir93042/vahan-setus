@@ -1,4 +1,5 @@
-import { Link, useLocation } from "react-router-dom";
+import { useContext } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutGrid,
   Car,
@@ -10,9 +11,23 @@ import {
   ChevronRight,
   LogOut,
 } from "lucide-react";
+import { AuthContext } from "../../context/AuthContext";
+import { logoutUser } from "../../services/authService";
 
 export default function Sidebar() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { logout,user } = useContext(AuthContext);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/");
+    } catch (error) {
+      navigate("/");
+      console.error("Sidebar logout failed:", error);
+    }
+  };
 
   const isMatch = (path) =>
     pathname === path ||
@@ -118,9 +133,9 @@ export default function Sidebar() {
 
             <div className="min-w-0 text-left">
               <p className="truncate text-sm font-bold text-white transition-colors group-hover:text-[#FF5E00]">
-                Minhaj
+                {user?.name || "User"}
               </p>
-              <p className="truncate text-xs text-slate-400">minhaj@gmail.com</p>
+              <p className="truncate text-xs text-slate-400">{user?.email || ""}</p>
             </div>
           </div>
 
@@ -141,13 +156,15 @@ export default function Sidebar() {
             <ExternalLink size={12} className="text-slate-500" />
           </Link>
 
-          <Link
-            to="/"
+          <button
+            type="button"
+            onClick={handleLogout}
             className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-rose-500/20 bg-rose-950/20 text-rose-400 transition-all duration-200 hover:border-rose-500/40 hover:bg-rose-950/40 hover:text-rose-300 cursor-pointer active:scale-95"
             aria-label="Sign Out"
+            title="Sign Out"
           >
             <LogOut size={16} />
-          </Link>
+          </button>
         </div>
       </div>
     </aside>

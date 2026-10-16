@@ -16,11 +16,11 @@ import {
   Bell,
   MessageCircle,
 } from "lucide-react";
+import { useContext } from "react";
+import { AuthContext } from "../../context/AuthContext";
 
 export default function DashboardHome() {
-  const user = {
-    name: "Mohammad Kaif",
-  };
+   
 
   const activeVehicle = {
     model: "Hyundai Creta",
@@ -69,6 +69,8 @@ export default function DashboardHome() {
     },
   ];
 
+  const {user,setUser, vehicles} = useContext(AuthContext)
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6">
       {/* 1. Top Hero Welcome Banner */}
@@ -88,7 +90,7 @@ export default function DashboardHome() {
                 Good Morning 👋
               </span>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight">
-                {user.name}
+                {user?.name || "User"}
               </h1>
               <p className="text-xs sm:text-sm text-gray-400 mt-1 leading-relaxed">
                 Stay connected. Drive worry-free.
@@ -99,7 +101,7 @@ export default function DashboardHome() {
             <div className="mt-4 flex items-center gap-4">
               <div>
                 <span className="text-xs text-gray-400 block font-medium">Your Vehicles</span>
-                <span className="text-2xl sm:text-3xl font-extrabold text-white">2</span>
+                <span className="text-2xl sm:text-2xl font-bold text-white">{vehicles.length}</span>
               </div>
               <div className="h-8 w-px bg-gray-800" />
               <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold">

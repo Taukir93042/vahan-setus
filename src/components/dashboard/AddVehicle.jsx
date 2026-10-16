@@ -1,31 +1,152 @@
-import { Link } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.png";
+import cretaWhite from "../../assets/vehicles/creta_white.jpg";
 import {
   Car,
-  Bike,
-  Truck,
   ArrowLeft,
   QrCode,
   Sparkles,
   Hash,
   Palette,
-  Calendar,
   EyeOff,
-  Check,
   ChevronRight,
+  Layers,
+  Image as ImageIcon,
+  X,
+  AlertCircle,
 } from "lucide-react";
-
-const VEHICLE_TYPES = [
-  { id: "Car", label: "Car / SUV", desc: "Sedans, hatchbacks, SUVs", icon: Car, isDefault: true },
-  { id: "Bike", label: "Motorcycle", desc: "Bikes & sports models", icon: Bike },
-  { id: "Scooter", label: "Scooter / EV", desc: "Activa, Ather, Ola EV", icon: Bike },
-  { id: "Auto", label: "Commercial", desc: "Auto, pickup, trucks", icon: Truck },
-];
+import { createVehicle } from "../../services/vehicleService";
 
 export default function AddVehicle() {
+  const navigate = useNavigate();
+
+  const [imagePreview, setImagePreview] = useState(cretaWhite);
+  const [vehicleImage, setVehicleImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [formData, setFormData] = useState({
+    vehicleNumber: "",
+    vehicleType: "car",
+    vehicleModel: "",
+    color: "",
+  });
+
+  const fileInputRef = useRef(null);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("Please select a valid image.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 1 * 1024 * 1024) {
+      setError("Image size should be less than 1MB.");
+      e.target.value = "";
+      return;
+    }
+
+    setError("");
+    setVehicleImage(file);
+
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview((oldPreview) => {
+      if (oldPreview && oldPreview !== cretaWhite) {
+        URL.revokeObjectURL(oldPreview);
+      }
+      return previewUrl;
+    });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview !== cretaWhite) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  // Image remove
+  const handleRemoveImage = () => {
+    if (imagePreview && imagePreview !== cretaWhite) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    setImagePreview(null);
+    setVehicleImage(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  // Form inputs handle karna
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: name === "vehicleNumber" ? value.toUpperCase() : value,
+    }));
+    if (error) setError("");
+  };
+
+  const convertToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!formData.vehicleNumber.trim() || !formData.vehicleModel.trim()) {
+      setError("Vehicle number aur model required hain.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      let imageBase64 = null;
+      if (vehicleImage) {
+        imageBase64 = await convertToBase64(vehicleImage);
+      }
+
+      const payload = {
+        vehicleNumber: formData.vehicleNumber.trim(),
+        vehicleType: formData.vehicleType,
+        vehicleModel: formData.vehicleModel.trim(),
+        color: formData.color.trim() || undefined,
+        vehicleImage: imageBase64 || undefined,
+      };
+
+      const response = await createVehicle(payload);
+
+      if (response?.success) {
+        navigate("/dashboard/my-vehicles");
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.message || "Failed to add vehicle. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
-      {/* 1. Header Bar with Breadcrumb and Security Status */}
+      {/* 1. Header Bar with Breadcrumb and Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/10">
         <div className="flex items-center gap-3">
           <Link
@@ -52,122 +173,113 @@ export default function AddVehicle() {
             </h1>
           </div>
         </div>
-
-         
       </div>
 
       {/* Two-Column Registration Form + Static Live Preview Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Form Details (7 Cols) */}
         <div className="lg:col-span-7 space-y-6">
-          <form className="space-y-6">
-            {/* Step 1: Vehicle Category */}
-            <div className="rounded-3xl border border-white/10 bg-[#090D17] p-5 sm:p-6 shadow-xl">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#FF5E00]">
-                    Step 1
-                  </span>
-                  <h3 className="text-base font-bold text-white">Select Vehicle Category</h3>
-                </div>
-                <span className="text-xs text-slate-400">Choose type for sticker sizing</span>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {VEHICLE_TYPES.map((type) => {
-                  const Icon = type.icon;
-                  const isSelected = type.isDefault;
-                  return (
-                    <button
-                      type="button"
-                      key={type.id}
-                      className={`relative p-3.5 rounded-2xl border text-left flex flex-col justify-between transition-all duration-200 cursor-pointer ${
-                        isSelected
-                          ? "border-orange-500/70 bg-[#1A120E] text-white shadow-md shadow-orange-950/40"
-                          : "border-white/10 bg-[#0C111C] text-slate-400 hover:border-white/20 hover:bg-white/[0.04] hover:text-white"
-                      }`}
-                    >
-                      {isSelected && (
-                        <span className="absolute top-2.5 right-2.5 h-4 w-4 rounded-full bg-[#FF5E00] flex items-center justify-center text-white">
-                          <Check size={11} strokeWidth={3} />
-                        </span>
-                      )}
-                      <Icon
-                        size={24}
-                        className={`mb-2 transition-colors ${
-                          isSelected ? "text-[#FF5E00]" : "text-slate-400"
-                        }`}
-                      />
-                      <div>
-                        <p className="text-xs font-bold text-white leading-tight">{type.label}</p>
-                        <p className="text-[10px] text-slate-500 leading-tight mt-0.5 truncate">
-                          {type.desc}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Step 2: Vehicle Identification */}
-            <div className="rounded-3xl border border-white/10 bg-[#090D17] p-5 sm:p-6 shadow-xl space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Vehicle Details Card */}
+            <div className="rounded-3xl border border-white/10 bg-[#090D17] p-5 sm:p-6 shadow-xl space-y-5">
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#FF5E00]">
-                  Step 2
-                </span>
-                <h3 className="text-base font-bold text-white">Vehicle Identification</h3>
+                <h3 className="text-base font-bold text-white">Vehicle Details</h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Enter vehicle make, plate number, and appearance details.
+                  Enter your vehicle specifications to generate a VahanSetu QR decal.
                 </p>
               </div>
 
-              {/* Make & Model */}
+              {/* Error message */}
+              {error && (
+                <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* 1. vehicleNumber */}
               <div>
                 <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                  <span>Vehicle Make & Model</span>
+                  <span>Vehicle Number Plate (vehicleNumber)</span>
                   <span className="text-[11px] text-rose-400 font-bold">*Required</span>
                 </label>
                 <div className="relative">
-                  <Car
+                  <Hash
                     size={17}
                     className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                   />
                   <input
                     type="text"
-                    defaultValue="Hyundai Creta SX (O)"
-                    placeholder="e.g. Hyundai Creta, BMW 3 Series, Tata Nexon"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0C111C] border border-white/10 text-sm text-white placeholder-slate-500 transition-all focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
+                    name="vehicleNumber"
+                    value={formData.vehicleNumber}
+                    onChange={handleChange}
+                    placeholder="e.g. DL 8C AX 1234"
+                    required
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0C111C] border border-white/10 text-sm font-bold tracking-wider uppercase text-white placeholder-slate-500 transition-all focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
                   />
                 </div>
               </div>
 
-              {/* Plate & Year Row */}
+              {/* Row: vehicleType & vehicleModel */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* License Plate */}
+                {/* 2. vehicleType */}
                 <div>
                   <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
-                    <span>Vehicle Number Plate</span>
+                    <span>Vehicle Type (vehicleType)</span>
                     <span className="text-[11px] text-rose-400 font-bold">*Required</span>
                   </label>
                   <div className="relative">
-                    <Hash
+                    <Layers
+                      size={17}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                    <select
+                      name="vehicleType"
+                      value={formData.vehicleType}
+                      onChange={handleChange}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0C111C] border border-white/10 text-sm text-white transition-all focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50 cursor-pointer"
+                    >
+                      <option value="car" className="bg-[#0C111C] text-white">Car / SUV</option>
+                      <option value="bike" className="bg-[#0C111C] text-white">Motorcycle / Bike</option>
+                      <option value="scooter" className="bg-[#0C111C] text-white">Scooter / EV</option>
+                      <option value="auto" className="bg-[#0C111C] text-white">Auto Rickshaw</option>
+                      <option value="commercial" className="bg-[#0C111C] text-white">Commercial Vehicle</option>
+                      <option value="other" className="bg-[#0C111C] text-white">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 3. vehicleModel */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                    <span>Vehicle Model (vehicleModel)</span>
+                    <span className="text-[11px] text-rose-400 font-bold">*Required</span>
+                  </label>
+                  <div className="relative">
+                    <Car
                       size={17}
                       className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                     />
                     <input
                       type="text"
-                      defaultValue="DL 8C AX 1234"
-                      placeholder="e.g. DL 8C AX 1234"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0C111C] border border-white/10 text-sm font-bold tracking-wider uppercase text-white placeholder-slate-500 transition-all focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
+                      name="vehicleModel"
+                      value={formData.vehicleModel}
+                      onChange={handleChange}
+                      placeholder="e.g. Hyundai Creta, Honda City"
+                      required
+                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0C111C] border border-white/10 text-sm text-white placeholder-slate-500 transition-all focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
                     />
                   </div>
                 </div>
+              </div>
 
-                {/* Color & Finish */}
+              {/* Row: color & vehicleImage */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 4. color */}
                 <div>
-                  <label className="text-xs font-semibold text-slate-300 mb-1.5 block">
-                    Vehicle Color
+                  <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                    <span>Vehicle Color (color)</span>
+                    <span className="text-[11px] text-slate-500 font-normal">Optional</span>
                   </label>
                   <div className="relative">
                     <Palette
@@ -176,38 +288,69 @@ export default function AddVehicle() {
                     />
                     <input
                       type="text"
-                      defaultValue="Polar White"
+                      name="color"
+                      value={formData.color}
+                      onChange={handleChange}
                       placeholder="e.g. Polar White, Matt Black"
                       className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0C111C] border border-white/10 text-sm text-white placeholder-slate-500 transition-all focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50"
                     />
                   </div>
                 </div>
-              </div>
 
-              {/* Year Select */}
-              <div>
-                <label className="text-xs font-semibold text-slate-300 mb-1.5 block">
-                  Manufacturing Year
-                </label>
-                <div className="relative">
-                  <Calendar
-                    size={17}
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
-                  />
-                  <select
-                    defaultValue="2024"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#0C111C] border border-white/10 text-sm text-white transition-all focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500/50 cursor-pointer"
-                  >
-                    {["2026", "2025", "2024", "2023", "2022", "2021", "2020", "2019", "2018", "Older"].map(
-                      (yr) => (
-                        <option key={yr} value={yr} className="bg-[#0C111C] text-white">
-                          {yr} Model
-                        </option>
-                      )
-                    )}
-                  </select>
+                {/* 5. vehicleImage File Upload */}
+                <div>
+                  <label className="text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                    <span>Vehicle Image (vehicleImage)</span>
+                    <span className="text-[11px] text-slate-500 font-normal">Optional</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      name="vehicleImage"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="w-full text-xs text-slate-400 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#FF5E00]/15 file:text-[#FF5E00] hover:file:bg-[#FF5E00]/25 file:cursor-pointer cursor-pointer rounded-xl bg-[#0C111C] border border-white/10 p-1.5 focus:border-orange-500 focus:outline-none transition-all"
+                    />
+                  </div>
                 </div>
               </div>
+
+              {/* Car Image Preview */}
+              {imagePreview && (
+                <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0C111C] p-3.5 shadow-xl transition-all">
+                  <div className="flex items-center justify-between mb-2.5 px-0.5">
+                    <span className="text-xs font-bold text-white flex items-center gap-2">
+                      <ImageIcon size={15} className="text-[#FF5E00]" />
+                      Car Image Preview
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="text-[11px] font-semibold text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors px-2 py-0.5 rounded-md hover:bg-red-500/10 cursor-pointer"
+                    >
+                      <X size={13} />
+                      Remove
+                    </button>
+                  </div>
+                  <div className="relative h-48 sm:h-56 w-full overflow-hidden rounded-xl bg-black/40 border border-white/5 group">
+                    <img
+                      src={imagePreview}
+                      alt="Car Preview"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
+                      <span className="px-3 py-1 rounded-lg bg-black/70 backdrop-blur-md text-xs font-semibold text-white border border-white/15">
+                        {formData.vehicleModel || "Hyundai Creta SX (O)"}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-orange-500/20 backdrop-blur-md text-[11px] font-bold text-[#FF5E00] border border-orange-500/30">
+                        Car Photo
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Form Actions */}
@@ -219,18 +362,19 @@ export default function AddVehicle() {
                 Cancel
               </Link>
 
-              <Link
-                to="/dashboard/my-vehicles"
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-r from-[#FF5E00] to-orange-600 hover:brightness-110 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-lg shadow-orange-600/30 cursor-pointer transition-all"
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-r from-[#FF5E00] to-orange-600 hover:brightness-110 active:scale-95 text-white font-bold text-xs sm:text-sm shadow-lg shadow-orange-600/30 cursor-pointer transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <Sparkles size={16} />
-                <span>Save & Generate QR Sticker</span>
-              </Link>
+                <span>{loading ? "Saving Vehicle..." : "Save & Generate QR Sticker"}</span>
+              </button>
             </div>
           </form>
         </div>
 
-        {/* Right Column: Static Sticker Preview (5 Cols) */}
+        {/* Right Column: Live Sticker Preview (5 Cols) */}
         <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-24">
           <div className="rounded-3xl border border-orange-500/30 bg-[#090D17] p-5 sm:p-6 shadow-2xl shadow-orange-950/20 flex flex-col items-center">
             {/* Header Label */}
@@ -314,17 +458,17 @@ export default function AddVehicle() {
                   <span className="text-[7px] font-bold leading-none">IND</span>
                 </div>
                 <span className="px-3 py-1 font-extrabold text-xs tracking-wider text-black">
-                  DL 8C AX 1234
+                  {formData.vehicleNumber || "DL 8C AX 1234"}
                 </span>
               </div>
 
               {/* Vehicle Model & Subtext */}
               <p className="mt-2 text-xs font-bold text-slate-800 text-center truncate max-w-[220px]">
-                Hyundai Creta SX (O)
+                {formData.vehicleModel || "Hyundai Creta SX (O)"}
               </p>
 
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
-                Scan to reach owner securely
+                {(formData.vehicleType || "car").toUpperCase()} • {formData.color || "Polar White"}
               </p>
             </div>
 
@@ -335,8 +479,8 @@ export default function AddVehicle() {
                 <span className="font-semibold text-white">3.5" x 3.5" Standard</span>
               </div>
               <div className="flex items-center justify-between text-slate-400 py-1.5 border-b border-white/5">
-                <span>Material Spec</span>
-                <span className="font-semibold text-white">Waterproof UV Vinyl</span>
+                <span>Vehicle Type</span>
+                <span className="font-semibold text-white uppercase">{formData.vehicleType || "car"}</span>
               </div>
               <div className="flex items-center justify-between text-slate-400 py-1.5 border-b border-white/5">
                 <span>Masking Protocol</span>
@@ -346,6 +490,23 @@ export default function AddVehicle() {
                 </span>
               </div>
             </div>
+
+            {/* Right Column: Car Photo Mini Card */}
+            {imagePreview && (
+              <div className="w-full mt-5 rounded-2xl border border-white/10 bg-[#0C111C] p-3 shadow-lg">
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-300 mb-2">
+                  <ImageIcon size={14} className="text-[#FF5E00]" />
+                  <span>Car Photo Preview</span>
+                </div>
+                <div className="relative h-32 w-full rounded-xl overflow-hidden border border-white/5">
+                  <img
+                    src={imagePreview}
+                    alt="Car preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

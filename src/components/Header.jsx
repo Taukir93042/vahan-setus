@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   FaQrcode,
   FaArrowRightToBracket,
@@ -10,25 +10,41 @@ import {
   FaArrowRightFromBracket,
   FaChevronUp,
   FaGauge,
+  FaUserPlus,
 } from "react-icons/fa6";
 import logo from "../assets/logo.png";
 import AuthModal from "./modals/AuthModal";
 import { AuthContext } from "../context/AuthContext";
 import { logoutUser } from "../services/authService";
+
 function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [authOpen, setAuthOpen] = useState(false);
-  const { user, setUser ,loading} = useContext(AuthContext);
+  const [authMode, setAuthMode] = useState("login");
+  const { user, setUser, logout, loading } = useContext(AuthContext);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef(null);
 
+  const openLogin = () => {
+    setAuthMode("login");
+    setAuthOpen(true);
+  };
+
+  const openRegister = () => {
+    setAuthMode("register");
+    setAuthOpen(true);
+  };
+
   const handleLogout = async () => {
     try {
-      await logoutUser();
-      setUser(null);
+      await logout();
       setProfileOpen(false);
+      navigate("/");
     } catch (error) {
+      setProfileOpen(false);
+      navigate("/");
       console.error("Logout failed:", error);
     }
   };
@@ -215,7 +231,7 @@ function Header() {
               </div>
             ) : (
               <button
-                onClick={() => setAuthOpen(true)}
+                onClick={openLogin}
                 className="flex h-11 items-center gap-2 rounded-full
       border border-[#262E3F] bg-[#121722] px-5
       text-sm font-semibold text-white shadow-sm
@@ -226,18 +242,32 @@ function Header() {
               </button>
             )}
 
-            {/* Get Your QR */}
-            <Link
-              to="/get-qr"
-              className="flex h-11 items-center gap-2 rounded-full
-    bg-gradient-to-r from-[#FF5500] to-[#FF6B00] px-5
-    text-sm font-semibold text-white shadow-lg shadow-orange-600/20
-    transition-all duration-200 hover:brightness-110
-    active:scale-95"
-            >
-              <FaQrcode size={16} />
-              Get Your QR
-            </Link>
+            {/* If user logged in: Get Your QR. If user NOT logged in: Sign Up */}
+            {user ? (
+              <Link
+                to="/get-qr"
+                className="flex h-11 items-center gap-2 rounded-full
+      bg-gradient-to-r from-[#FF5500] to-[#FF6B00] px-5
+      text-sm font-semibold text-white shadow-lg shadow-orange-600/20
+      transition-all duration-200 hover:brightness-110
+      active:scale-95"
+              >
+                <FaQrcode size={16} />
+                Get Your QR
+              </Link>
+            ) : (
+              <button
+                onClick={openRegister}
+                className="flex h-11 items-center gap-2 rounded-full
+      bg-gradient-to-r from-[#FF5500] to-[#FF6B00] px-5
+      text-sm font-semibold text-white shadow-lg shadow-orange-600/20
+      transition-all duration-200 hover:brightness-110
+      active:scale-95"
+              >
+                <FaUserPlus size={15} />
+                Sign Up
+              </button>
+            )}
           </div>
 
           {/* Mobile Hamburger Button */}
@@ -319,6 +349,15 @@ function Header() {
                     <span>Dashboard ({user?.name?.split(" ")[0] || "User"})</span>
                   </Link>
 
+                  <Link
+                    to="/get-qr"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-center gap-2 w-full h-11 text-sm font-semibold text-white bg-gradient-to-r from-[#FF5500] to-[#FF6B00] rounded-full shadow-md shadow-orange-600/25 hover:brightness-110 active:scale-95 transition-all"
+                  >
+                    <FaQrcode className="text-base text-white" />
+                    <span>Get Your QR</span>
+                  </Link>
+
                   <button
                     onClick={() => {
                       setMobileOpen(false);
@@ -331,31 +370,39 @@ function Header() {
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => {
-                    setMobileOpen(false);
-                    setAuthOpen(true);
-                  }}
-                  className="flex items-center justify-center gap-2 w-full h-11 text-sm font-medium text-white bg-white/10 backdrop-blur-md border border-white/15 rounded-full hover:bg-white/20 transition-all"
-                >
-                  <FaArrowRightToBracket className="text-base text-white" />
-                  <span>Login</span>
-                </button>
-              )}
+                <>
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      openLogin();
+                    }}
+                    className="flex items-center justify-center gap-2 w-full h-11 text-sm font-medium text-white bg-white/10 backdrop-blur-md border border-white/15 rounded-full hover:bg-white/20 transition-all"
+                  >
+                    <FaArrowRightToBracket className="text-base text-white" />
+                    <span>Login</span>
+                  </button>
 
-              <Link
-                to="/get-qr"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center justify-center gap-2 w-full h-11 text-sm font-semibold text-white bg-gradient-to-r from-[#FF5500] to-[#FF6B00] rounded-full shadow-md shadow-orange-600/25 hover:brightness-110 active:scale-95 transition-all"
-              >
-                <FaQrcode className="text-base text-white" />
-                <span>Get Your QR</span>
-              </Link>
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      openRegister();
+                    }}
+                    className="flex items-center justify-center gap-2 w-full h-11 text-sm font-semibold text-white bg-gradient-to-r from-[#FF5500] to-[#FF6B00] rounded-full shadow-md shadow-orange-600/25 hover:brightness-110 active:scale-95 transition-all"
+                  >
+                    <FaUserPlus className="text-base text-white" />
+                    <span>Sign Up</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
       </header>
-      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
+      <AuthModal
+        isOpen={authOpen}
+        onClose={() => setAuthOpen(false)}
+        initialMode={authMode}
+      />
     </>
   );
 }

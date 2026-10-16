@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   FaXmark,
   FaUser,
@@ -11,14 +11,21 @@ import {
 import { loginUser, registerUser } from "../../services/authService";
 import { AuthContext } from "../../context/AuthContext";
 
-export default function AuthModal({ isOpen, onClose }) {
-  const [mode, setMode] = useState("login");
+export default function AuthModal({ isOpen, onClose, initialMode = "login" }) {
+  const [mode, setMode] = useState(initialMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode || "login");
+      setError("");
+    }
+  }, [isOpen, initialMode]);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-   const {user,setUser} = useContext(AuthContext)
+  const { user, setUser } = useContext(AuthContext);
   const isLogin = mode === "login";
 
   const [formData, setFormData] = useState({
@@ -47,13 +54,25 @@ export default function AuthModal({ isOpen, onClose }) {
       return;
     }
 
+    // Fix common typos in email domains (e.g. gmal.com, gmai.com, gamil.com -> gmail.com)
+    let cleanedEmail = (formData.email || "").trim().toLowerCase();
+    cleanedEmail = cleanedEmail.replace(/@(gmai|gmal|gamil|gmial|gmaill)\.com$/i, "@gmail.com");
+
+    const payload = {
+      ...formData,
+      email: cleanedEmail,
+    };
+
     try {
       setLoading(true);
 
       const response = isLogin
-        ? await loginUser(formData)
-        : await registerUser(formData);
+        ? await loginUser(payload)
+        : await registerUser(payload);
 
+      if (response?.data?.token) {
+        localStorage.setItem("token", response.data.token);
+      }
       if (response?.data?.user) {
         setUser(response.data.user);
       }

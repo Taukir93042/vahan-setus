@@ -12,9 +12,15 @@ import ContactRequests from './components/dashboard/ContactRequests'
 import Profile from './components/dashboard/Profile'
 import ProtectedRoute from './components/ProtectedRoute'
 
+import PublicVehicle from './components/modals/dashboardmodel/PublicVehicle'
+
 function App() {
   return (
     <Routes>
+      {/* Public Vehicle Scan & Preview Pages */}
+      <Route path="/v/:qrToken" element={<PublicVehicle />} />
+      <Route path="/public-vehicle" element={<PublicVehicle />} />
+
       {/* Public Website */}
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
